@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "gatekeeper"
     APP_ENV: str = "development"
     DEBUG: bool = True
+    LOG_LEVEL: str = "INFO"
 
     HOST: str = "0.0.0.0"
     PORT: int = 8000
@@ -21,17 +22,25 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://gatekeeper:gatekeeper@localhost:5432/gatekeeper"
     SECRET_KEY: str = "change-me-in-production"
 
-    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    OPENAI_API_KEY: str = ""
+    ANTHROPIC_API_KEY: str = ""
+
+    # Stored as comma-separated string to avoid pydantic-settings JSON parsing issues.
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
 
     CHROMA_HOST: str = "localhost"
     CHROMA_PORT: int = 8001
 
-    @field_validator("CORS_ORIGINS", mode="before")
+    @field_validator("DATABASE_URL", mode="before")
     @classmethod
-    def parse_cors_origins(cls, value: str | list[str]) -> list[str]:
-        if isinstance(value, str):
-            return [origin.strip() for origin in value.split(",") if origin.strip()]
+    def ensure_async_driver(cls, value: str) -> str:
+        if isinstance(value, str) and value.startswith("postgresql://"):
+            return value.replace("postgresql://", "postgresql+asyncpg://", 1)
         return value
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
 
 
 settings = Settings()

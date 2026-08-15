@@ -7,5 +7,5 @@ api_v1_router = APIRouter()
 
 @api_v1_router.get("/")
 async def api_v1_root() -> dict[str, str]:
-    """API v1 root — placeholder until feature routers are wired."""
-    return {"message": "Gatekeeper.ai API v1", "status": "stub"}
+    """API v1 root."""
+    return {"message": "Gatekeeper.ai API v1", "status": "ok"}

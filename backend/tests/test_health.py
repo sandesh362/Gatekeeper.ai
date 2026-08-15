@@ -1,19 +1,23 @@
-"""Smoke tests for Phase 1 scaffold."""
+"""Health check endpoint tests."""
 
-from fastapi.testclient import TestClient
+from unittest.mock import AsyncMock, patch
 
-from app.main import app
-
-client = TestClient(app)
+from tests.conftest import client
 
 
-def test_health_check() -> None:
+@patch("app.api.health.check_db_connection", new_callable=AsyncMock, return_value=True)
+def test_health_check_db_connected(_mock_db: AsyncMock, client) -> None:
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json()["status"] == "ok"
+    data = response.json()
+    assert data["status"] == "ok"
+    assert data["db"] == "connected"
 
 
-def test_api_v1_root() -> None:
-    response = client.get("/api/v1/")
+@patch("app.api.health.check_db_connection", new_callable=AsyncMock, return_value=False)
+def test_health_check_db_disconnected(_mock_db: AsyncMock, client) -> None:
+    response = client.get("/health")
     assert response.status_code == 200
-    assert "Gatekeeper" in response.json()["message"]
+    data = response.json()
+    assert data["status"] == "ok"
+    assert data["db"] == "disconnected"

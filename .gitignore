@@ -35,9 +35,8 @@ htmlcov/
 .ruff_cache/
 *.db
 
-# Alembic
-backend/app/db/migrations/versions/*.py
-!backend/app/db/migrations/versions/.gitkeep
+# Alembic versions are committed; only ignore pycache in migrations
+backend/app/db/migrations/versions/__pycache__/
 
 # Node / Frontend
 node_modules/
