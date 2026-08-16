@@ -43,13 +43,23 @@ def test_aggregator_passes_benign() -> None:
 
 
 def test_aggregator_flags_medium_risk() -> None:
+    matches = [
+        RuleMatch(
+            rule_id="jailbreak_keyword",
+            severity=70,
+            category="jailbreak",
+            matched_text="jailbreak",
+            description="test",
+        )
+    ]
     result = aggregate_risk(
-        [],
-        SimilarityResult(similarity_score=0.75, risk_level="medium", category="jailbreak"),
+        matches,
+        SimilarityResult(similarity_score=0.9, risk_level="high", category="jailbreak"),
         LLMJudgeResult(category="disabled"),
-        HeuristicResult(score=30),
+        HeuristicResult(score=80),
     )
     assert result.decision in (DetectionDecision.FLAG, DetectionDecision.BLOCK)
+    assert result.risk_score >= 40
 
 
 def test_aggregator_layer_breakdown_has_four_layers() -> None:

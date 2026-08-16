@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.core.config import settings
 from app.db.session import get_db
+from app.features.detection.schemas import SimilarityResult
 from app.features.proxy.providers.base import CompletionResult
 from app.features.proxy.router import get_proxy_service
 from app.features.proxy.service import ProxyService
@@ -45,12 +46,17 @@ def detection_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     mock_provider.close = AsyncMock()
 
     with patch("app.features.proxy.service.get_provider", return_value=mock_provider):
-        app.dependency_overrides[get_db] = _override_get_db
-        app.dependency_overrides[get_proxy_service] = lambda: ProxyService()
-        with TestClient(app) as client:
-            client._mock_provider = mock_provider  # type: ignore[attr-defined]
-            yield client
-        app.dependency_overrides.clear()
+        with patch(
+            "app.features.detection.service.check_similarity",
+            new_callable=AsyncMock,
+            return_value=SimilarityResult(),
+        ):
+            app.dependency_overrides[get_db] = _override_get_db
+            app.dependency_overrides[get_proxy_service] = lambda: ProxyService()
+            with TestClient(app) as client:
+                client._mock_provider = mock_provider  # type: ignore[attr-defined]
+                yield client
+            app.dependency_overrides.clear()
 
 
 def test_jailbreak_prompt_blocked_llm_not_called(detection_client: TestClient) -> None:

@@ -50,11 +50,12 @@ class ProxyService:
         provider_client = get_provider(request.provider)
         messages = [message.model_dump() for message in request.messages]
         prompt_text = _serialize_prompt(messages)
+        detection_text = _extract_detection_text(messages)
         provider_enum = Provider(request.provider)
 
         start = time.perf_counter()
 
-        detection_result = await self._detection.analyze_prompt(prompt_text)
+        detection_result = await self._detection.analyze_prompt(detection_text)
         await self._detection_audit.log_detection(db, request_id=request_id, result=detection_result)
 
         if detection_result.decision == DetectionDecision.BLOCK:
@@ -185,6 +186,14 @@ class ProxyService:
 
 def _serialize_prompt(messages: list[dict[str, str]]) -> str:
     return "\n".join(f"{message['role']}: {message['content']}" for message in messages)
+
+
+def _extract_detection_text(messages: list[dict[str, str]]) -> str:
+    """Extract user-supplied content for detection (without role prefixes)."""
+    user_parts = [m["content"] for m in messages if m["role"] == "user"]
+    if user_parts:
+        return "\n".join(user_parts)
+    return "\n".join(m["content"] for m in messages)
 
 
 proxy_service = ProxyService()
