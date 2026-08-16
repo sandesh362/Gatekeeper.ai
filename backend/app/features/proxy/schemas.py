@@ -24,6 +24,13 @@ class TokenUsage(BaseModel):
     total_tokens: int | None = None
 
 
+class DetectionMetadata(BaseModel):
+    risk_score: int
+    decision: str
+    categories: list[str] = Field(default_factory=list)
+    canary_triggered: bool = False
+
+
 class ChatResponse(BaseModel):
     request_id: str
     provider: str
@@ -31,9 +38,17 @@ class ChatResponse(BaseModel):
     content: str
     latency_ms: int
     usage: TokenUsage | None = None
+    detection: DetectionMetadata | None = None
 
 
 class ChatErrorResponse(BaseModel):
     request_id: str
     error: str
     detail: str
+
+
+class BlockedResponse(BaseModel):
+    request_id: str
+    error: str = "Request blocked"
+    risk_score: int
+    categories: list[str] = Field(default_factory=list)

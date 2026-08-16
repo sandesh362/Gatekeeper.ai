@@ -8,8 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.features.proxy.providers.base import ProviderError
-from app.features.proxy.schemas import ChatErrorResponse, ChatRequest, ChatResponse
-from app.features.proxy.service import ProxyService, proxy_service
+from app.features.proxy.schemas import (
+    BlockedResponse,
+    ChatErrorResponse,
+    ChatRequest,
+    ChatResponse,
+)
+from app.features.proxy.service import ProxyBlockedError, ProxyService, proxy_service
 
 router = APIRouter(tags=["proxy"])
 
@@ -29,6 +34,16 @@ async def chat_completion(
 
     try:
         return await service.handle_chat(body, db, request_id)
+    except ProxyBlockedError as exc:
+        return JSONResponse(
+            status_code=403,
+            content=BlockedResponse(
+                request_id=str(request_id),
+                risk_score=exc.risk_score,
+                categories=exc.categories,
+            ).model_dump(),
+            headers={"X-Request-ID": str(request_id)},
+        )
     except ProviderError as exc:
         return JSONResponse(
             status_code=exc.status_code,

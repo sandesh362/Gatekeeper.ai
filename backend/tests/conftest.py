@@ -33,6 +33,7 @@ def mock_proxy_service() -> ProxyService:
             content="Hello from Gatekeeper!",
             latency_ms=150,
             usage=TokenUsage(prompt_tokens=5, completion_tokens=10, total_tokens=15),
+            detection=None,
         )
 
     service.handle_chat.side_effect = _handle_chat

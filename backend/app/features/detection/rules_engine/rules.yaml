@@ -1,0 +1,253 @@
+# Curated prompt-injection / jailbreak detection rules.
+# Each rule: id, pattern (regex), category, severity (0-100), description
+
+rules:
+  # --- Instruction override / jailbreak ---
+  - id: ignore_previous_instructions
+    pattern: "(?i)ignore\\s+(all\\s+)?(previous|prior|above)\\s+(instructions?|prompts?|rules?|directions?)"
+    category: jailbreak
+    severity: 95
+    description: "Attempts to override prior instructions"
+
+  - id: disregard_instructions
+    pattern: "(?i)disregard\\s+(all\\s+)?(previous|prior|your)\\s+(instructions?|rules?|guidelines?)"
+    category: jailbreak
+    severity: 95
+    description: "Attempts to disregard system instructions"
+
+  - id: forget_everything
+    pattern: "(?i)forget\\s+(everything|all)\\s+(you\\s+)?(know|learned|were\\s+told)"
+    category: jailbreak
+    severity: 90
+    description: "Attempts to reset model context"
+
+  - id: new_instructions_override
+    pattern: "(?i)(your\\s+)?new\\s+(instructions?|rules?|directives?)\\s+(are|is)"
+    category: jailbreak
+    severity: 90
+    description: "Injects new instructions overriding system prompt"
+
+  - id: do_anything_now
+    pattern: "(?i)from\\s+now\\s+on\\s+you\\s+(are|will|must|should)"
+    category: jailbreak
+    severity: 85
+    description: "Role reassignment via temporal override"
+
+  - id: pretend_you_are
+    pattern: "(?i)pretend\\s+(you\\s+are|to\\s+be)\\s+(a\\s+)?(DAN|evil|unrestricted|unfiltered)"
+    category: jailbreak
+    severity: 90
+    description: "Pretend-to-be jailbreak pattern"
+
+  - id: dan_jailbreak
+    pattern: "(?i)\\bDAN\\b.*(do\\s+anything\\s+now|jailbreak|no\\s+restrictions?)"
+    category: jailbreak
+    severity: 95
+    description: "DAN (Do Anything Now) jailbreak"
+
+  - id: developer_mode
+    pattern: "(?i)(enable|enter|activate)\\s+(developer|dev)\\s+mode"
+    category: jailbreak
+    severity: 90
+    description: "Developer mode jailbreak attempt"
+
+  - id: no_restrictions
+    pattern: "(?i)(no\\s+restrictions?|without\\s+(any\\s+)?restrictions?|unrestricted\\s+mode)"
+    category: jailbreak
+    severity: 85
+    description: "Requests unrestricted behavior"
+
+  - id: bypass_safety
+    pattern: "(?i)bypass\\s+(your\\s+)?(safety|content|ethical)\\s+(filters?|guidelines?|restrictions?)"
+    category: jailbreak
+    severity: 95
+    description: "Explicit safety bypass request"
+
+  - id: act_as_if_no_rules
+    pattern: "(?i)act\\s+as\\s+if\\s+(you\\s+)?(have\\s+)?no\\s+(rules?|restrictions?|guidelines?)"
+    category: jailbreak
+    severity: 90
+    description: "Act-as-if no rules jailbreak"
+
+  - id: roleplay_evil
+    pattern: "(?i)roleplay\\s+as\\s+(an?\\s+)?(evil|malicious|unrestricted|uncensored)"
+    category: jailbreak
+    severity: 85
+    description: "Malicious roleplay jailbreak"
+
+  - id: you_are_now
+    pattern: "(?i)you\\s+are\\s+now\\s+(a\\s+)?(DAN|evil|unrestricted|unfiltered|uncensored)"
+    category: jailbreak
+    severity: 90
+    description: "Direct role reassignment"
+
+  - id: sudo_mode
+    pattern: "(?i)\\bsudo\\s+mode\\b|\\broot\\s+access\\b"
+    category: jailbreak
+    severity: 80
+    description: "Privilege escalation jailbreak metaphor"
+
+  - id: opposite_day
+    pattern: "(?i)opposite\\s+day|do\\s+the\\s+opposite\\s+of"
+    category: jailbreak
+    severity: 75
+    description: "Opposite-day instruction inversion"
+
+  # --- System prompt extraction ---
+  - id: repeat_instructions
+    pattern: "(?i)repeat\\s+(your\\s+)?(system\\s+)?(prompt|instructions?|rules?|guidelines?)"
+    category: exfil
+    severity: 90
+    description: "System prompt extraction via repeat request"
+
+  - id: show_system_prompt
+    pattern: "(?i)(show|display|print|reveal|output|tell\\s+me)\\s+(your\\s+)?(system\\s+)?(prompt|instructions?)"
+    category: exfil
+    severity: 90
+    description: "Direct system prompt exfiltration"
+
+  - id: what_are_your_instructions
+    pattern: "(?i)what\\s+(are|were)\\s+your\\s+(original\\s+)?(instructions?|rules?|guidelines?|prompt)"
+    category: exfil
+    severity: 85
+    description: "Queries for system instructions"
+
+  - id: repeat_above_text
+    pattern: "(?i)repeat\\s+(the\\s+)?(text|content|message)\\s+(above|before)"
+    category: exfil
+    severity: 85
+    description: "Repeat-above-text exfiltration"
+
+  - id: output_initial_prompt
+    pattern: "(?i)output\\s+(the\\s+)?(initial|original|first)\\s+(prompt|message|instructions?)"
+    category: exfil
+    severity: 90
+    description: "Requests initial prompt output"
+
+  - id: summarize_system_prompt
+    pattern: "(?i)summarize\\s+(your\\s+)?(system\\s+)?(prompt|instructions?|rules?)"
+    category: exfil
+    severity: 80
+    description: "Summarize system prompt exfiltration"
+
+  - id: translate_system_prompt
+    pattern: "(?i)translate\\s+(your\\s+)?(system\\s+)?(prompt|instructions?)"
+    category: exfil
+    severity: 80
+    description: "Translate system prompt exfiltration"
+
+  - id: base64_encode_prompt
+    pattern: "(?i)(base64|encode)\\s+(your\\s+)?(system\\s+)?(prompt|instructions?)"
+    category: exfil
+    severity: 85
+    description: "Encoded system prompt exfiltration"
+
+  # --- Delimiter / role-confusion injection ---
+  - id: fake_system_tag
+    pattern: "(?i)\\bsystem\\s*:\\s*"
+    category: injection
+    severity: 85
+    description: "Fake system role delimiter in user content"
+
+  - id: fake_assistant_tag
+    pattern: "(?i)\\bassistant\\s*:\\s*"
+    category: injection
+    severity: 80
+    description: "Fake assistant role delimiter in user content"
+
+  - id: fake_user_tag
+    pattern: "(?i)\\buser\\s*:\\s*"
+    category: injection
+    severity: 70
+    description: "Fake user role delimiter injection"
+
+  - id: xml_system_tag
+    pattern: "(?i)<\\s*/?\\s*system\\s*>"
+    category: injection
+    severity: 85
+    description: "XML-style system tag injection"
+
+  - id: xml_assistant_tag
+    pattern: "(?i)<\\s*/?\\s*assistant\\s*>"
+    category: injection
+    severity: 80
+    description: "XML-style assistant tag injection"
+
+  - id: markdown_system_block
+    pattern: "(?i)```\\s*system"
+    category: injection
+    severity: 85
+    description: "Markdown code block system injection"
+
+  - id: bracket_system
+    pattern: "(?i)\\[\\s*system\\s*\\]"
+    category: injection
+    severity: 80
+    description: "Bracket-style system tag injection"
+
+  - id: inst_tag_injection
+    pattern: "(?i)\\[INST\\]|<<SYS>>|<<\\/SYS>>"
+    category: injection
+    severity: 85
+    description: "Llama/Mistral instruction tag injection"
+
+  - id: end_of_prompt_marker
+    pattern: "(?i)(end\\s+of\\s+(system\\s+)?prompt|###\\s*instruction|###\\s*system)"
+    category: injection
+    severity: 80
+    description: "Prompt boundary marker injection"
+
+  - id: human_assistant_turn
+    pattern: "(?i)\\bHuman\\s*:\\s*|\\bAssistant\\s*:\\s*"
+    category: injection
+    severity: 75
+    description: "Human/Assistant turn marker injection"
+
+  # --- Prompt injection / indirect ---
+  - id: ignore_safety_guidelines
+    pattern: "(?i)ignore\\s+(the\\s+)?(safety|content|ethical)\\s+(guidelines?|policies?|rules?)"
+    category: injection
+    severity: 90
+    description: "Ignore safety guidelines injection"
+
+  - id: override_programming
+    pattern: "(?i)override\\s+(your\\s+)?(programming|training|programming)"
+    category: injection
+    severity: 90
+    description: "Override programming injection"
+
+  - id: jailbreak_keyword
+    pattern: "(?i)\\bjailbreak\\b"
+    category: jailbreak
+    severity: 70
+    description: "Explicit jailbreak keyword"
+
+  - id: prompt_injection_keyword
+    pattern: "(?i)\\bprompt\\s+injection\\b"
+    category: injection
+    severity: 65
+    description: "Explicit prompt injection keyword"
+
+  - id: inject_instructions
+    pattern: "(?i)inject\\s+(new\\s+)?(instructions?|commands?|prompts?)"
+    category: injection
+    severity: 85
+    description: "Explicit instruction injection"
+
+  - id: hidden_instruction
+    pattern: "(?i)hidden\\s+(instruction|command|prompt)"
+    category: injection
+    severity: 80
+    description: "Hidden instruction reference"
+
+  - id: exfiltrate_data
+    pattern: "(?i)exfiltrate\\s+(data|information|secrets?|credentials?)"
+    category: exfil
+    severity: 90
+    description: "Explicit data exfiltration request"
+
+  - id: leak_system_info
+    pattern: "(?i)leak\\s+(your\\s+)?(system|internal|hidden)\\s+(info|information|data|prompt)"
+    category: exfil
+    severity: 90
+    description: "System information leak request"
