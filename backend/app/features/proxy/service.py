@@ -2,6 +2,7 @@
 
 import time
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +17,7 @@ from app.features.detection.service import DetectionService, detection_service
 from app.features.logging_audit.detection_audit import DetectionAuditService, detection_audit_service
 from app.features.logging_audit.logger import get_logger
 from app.features.logging_audit.service import AuditService, audit_service
+from app.features.dashboard_api.live import live_dashboard_hub
 from app.features.proxy.providers.base import ProviderError
 from app.features.proxy.providers.factory import get_provider
 from app.features.proxy.schemas import ChatRequest, ChatResponse, DetectionMetadata, TokenUsage
@@ -56,11 +58,10 @@ class ProxyService:
         start = time.perf_counter()
 
         detection_result = await self._detection.analyze_prompt(detection_text)
-        await self._detection_audit.log_detection(db, request_id=request_id, result=detection_result)
 
         if detection_result.decision == DetectionDecision.BLOCK:
             latency_ms = int((time.perf_counter() - start) * 1000)
-            await self._audit.log_request(
+            entry = await self._audit.log_request(
                 db,
                 request_id=request_id,
                 client_id=request.client_id,
@@ -72,6 +73,8 @@ class ProxyService:
                 latency_ms=latency_ms,
                 error_message=detection_result.reasoning_summary,
             )
+            await self._detection_audit.log_detection(db, request_id=request_id, result=detection_result)
+            await self._publish_live(entry, detection_result)
             logger.warning(
                 "proxy_request_blocked",
                 extra={
@@ -97,10 +100,7 @@ class ProxyService:
 
             if check_canary_leakage(result.content, canary_token):
                 detection_result = self._detection.apply_canary_block(detection_result)
-                await self._detection_audit.log_detection(
-                    db, request_id=request_id, result=detection_result
-                )
-                await self._audit.log_request(
+                entry = await self._audit.log_request(
                     db,
                     request_id=request_id,
                     client_id=request.client_id,
@@ -112,12 +112,16 @@ class ProxyService:
                     latency_ms=latency_ms,
                     error_message=detection_result.reasoning_summary,
                 )
+                await self._detection_audit.log_detection(
+                    db, request_id=request_id, result=detection_result
+                )
+                await self._publish_live(entry, detection_result)
                 raise ProxyBlockedError(
                     risk_score=detection_result.risk_score,
                     categories=detection_result.categories,
                 )
 
-            await self._audit.log_request(
+            entry = await self._audit.log_request(
                 db,
                 request_id=request_id,
                 client_id=request.client_id,
@@ -128,6 +132,8 @@ class ProxyService:
                 status=RequestStatus.success,
                 latency_ms=latency_ms,
             )
+            await self._detection_audit.log_detection(db, request_id=request_id, result=detection_result)
+            await self._publish_live(entry, detection_result)
 
             logger.info(
                 "proxy_request_completed",
@@ -159,7 +165,7 @@ class ProxyService:
             )
         except ProviderError as exc:
             latency_ms = int((time.perf_counter() - start) * 1000)
-            await self._audit.log_request(
+            entry = await self._audit.log_request(
                 db,
                 request_id=request_id,
                 client_id=request.client_id,
@@ -171,6 +177,8 @@ class ProxyService:
                 latency_ms=latency_ms,
                 error_message=exc.message,
             )
+            await self._detection_audit.log_detection(db, request_id=request_id, result=detection_result)
+            await self._publish_live(entry, None)
             logger.warning(
                 "proxy_request_failed",
                 extra={
@@ -182,6 +190,17 @@ class ProxyService:
             raise
         finally:
             await provider_client.close()
+
+    @staticmethod
+    async def _publish_live(entry, detection_result) -> None:
+        """Notify dashboard clients after the durable audit write succeeds."""
+        await live_dashboard_hub.publish(
+            request_id=entry.id,
+            timestamp=entry.timestamp or datetime.now(timezone.utc),
+            decision=(detection_result.decision.value if detection_result else "error"),
+            risk_score=detection_result.risk_score if detection_result else None,
+            provider=entry.provider.value,
+        )
 
 
 def _serialize_prompt(messages: list[dict[str, str]]) -> str:

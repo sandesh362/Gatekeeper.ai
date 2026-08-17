@@ -1,15 +1,2 @@
-export default function SettingsPage() {
-  return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-2xl font-semibold">Settings</h2>
-        <p className="mt-1 text-sm text-slate-400">
-          Firewall rules, API keys, and detection layer configuration.
-        </p>
-      </div>
-      <div className="rounded-xl border border-dashed border-slate-700 p-12 text-center text-slate-500">
-        Coming in Phase 2
-      </div>
-    </div>
-  )
-}
+const layers = [['Rules engine', '30%'], ['Embedding similarity', '25%'], ['LLM judge', '30%'], ['Structural heuristics', '15%'], ['Canary tokens', 'Enabled']]
+export default function SettingsPage() { return <section className="space-y-5"><div><h2 className="text-2xl font-semibold">Detection settings</h2><p className="text-sm text-slate-400">Configuration is visible for this phase; editing is disabled.</p></div><div className="max-w-2xl rounded-lg border border-slate-800 bg-slate-900/50">{layers.map(([name, value]) => <div key={name} className="flex items-center justify-between border-b border-slate-800 p-4 last:border-0"><span>{name}</span><span className="rounded bg-slate-800 px-2 py-1 text-sm text-slate-400">{value}</span></div>)}</div></section> }

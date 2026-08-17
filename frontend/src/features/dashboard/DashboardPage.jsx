@@ -1,39 +1,14 @@
-import { useBackendHealth } from '../../hooks/useBackendHealth.js'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { dashboardApi } from '../../services/api.js'
+import { useAppStore } from '../../store/index.js'
+import { DecisionBadge } from '../logs/RequestTable.jsx'
 
 export default function DashboardPage() {
-  const { loading, ok, data, error } = useBackendHealth()
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold">Dashboard</h2>
-        <p className="mt-1 text-sm text-slate-400">
-          Real-time overview of prompt-injection firewall activity.
-        </p>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard title="Requests Today" value="—" subtitle="Phase 2" />
-        <StatCard title="Threats Blocked" value="—" subtitle="Phase 2" />
-        <StatCard title="Backend Status" value={loading ? '…' : ok ? 'Online' : 'Offline'} subtitle={error ?? data?.service ?? 'gatekeeper'} />
-      </div>
-
-      <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
-        <h3 className="font-medium text-slate-200">Phase 1 Scaffold</h3>
-        <p className="mt-2 text-sm text-slate-400">
-          Detection layers, proxy forwarding, and live metrics will be wired in Phase 2.
-        </p>
-      </div>
-    </div>
-  )
+  const [stats, setStats] = useState(); const [error, setError] = useState(''); const liveFeed = useAppStore((state) => state.liveFeed)
+  useEffect(() => { const load = () => dashboardApi.getStats().then(setStats).catch((e) => setError(e.message)); load(); const timer = setInterval(load, 30000); return () => clearInterval(timer) }, [])
+  const cards = stats ? [['Requests today', stats.total_requests, 'Last 24 hours'], ['Block rate', `${stats.block_rate}%`, 'Detection enforcement'], ['Flag rate', `${stats.flag_rate}%`, 'Review queue'], ['Avg latency', `${stats.average_latency_ms} ms`, 'Proxy end-to-end']] : []
+  return <section className="space-y-5"><div><h2 className="text-2xl font-semibold">Security overview</h2><p className="text-sm text-slate-400">Live proxy activity and detection health.</p></div>{error && <p className="text-sm text-red-300">{error}</p>}<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{cards.map(([title, value, label]) => <div key={title} className="rounded-lg border border-slate-800 bg-slate-900/50 p-4"><p className="text-xs uppercase tracking-wide text-slate-500">{title}</p><p className="mt-2 text-3xl font-semibold">{value}</p><p className="mt-1 text-xs text-slate-500">{label}</p></div>)}</div><div className="grid gap-5 xl:grid-cols-3"><div className="rounded-lg border border-slate-800 bg-slate-900/50 p-5 xl:col-span-2"><h3 className="font-medium">Requests over time</h3><p className="mb-5 text-xs text-slate-500">Hourly buckets — pass, flag, block</p><Trend buckets={stats?.requests_over_time ?? []} /></div><div className="rounded-lg border border-slate-800 bg-slate-900/50 p-5"><h3 className="font-medium">Attack categories</h3><div className="mt-5 space-y-3">{Object.entries(stats?.categories ?? {}).map(([name, count]) => <div key={name}><div className="flex justify-between text-sm capitalize"><span>{name}</span><span>{count}</span></div><div className="mt-1 h-2 rounded bg-slate-800"><div className="h-full rounded bg-gatekeeper-500" style={{ width: `${Math.min(100, (count / Math.max(stats?.total_requests || 1, 1)) * 100)}%` }} /></div></div>)}</div></div></div><LiveFeed events={liveFeed} /></section>
 }
-
-function StatCard({ title, value, subtitle }) {
-  return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
-      <p className="text-sm text-slate-400">{title}</p>
-      <p className="mt-2 text-3xl font-semibold">{value}</p>
-      <p className="mt-1 text-xs text-slate-500">{subtitle}</p>
-    </div>
-  )
-}
+function Trend({ buckets }) { const max = Math.max(1, ...buckets.map((b) => b.pass_count + b.flag_count + b.block_count)); return <div className="flex h-44 items-end gap-px">{buckets.map((b) => <div key={b.hour} title={`${new Date(b.hour).toLocaleTimeString()}: ${b.pass_count + b.flag_count + b.block_count}`} className="flex min-w-0 flex-1 flex-col justify-end"><div className="bg-emerald-500/70" style={{ height: `${(b.pass_count / max) * 100}%` }} /><div className="bg-amber-400/80" style={{ height: `${(b.flag_count / max) * 100}%` }} /><div className="bg-red-500/80" style={{ height: `${(b.block_count / max) * 100}%` }} /></div>)}</div> }
+function LiveFeed({ events }) { const navigate = useNavigate(); return <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-5"><div className="mb-4 flex items-center justify-between"><h3 className="font-medium">Live attack feed</h3><span className="text-xs text-slate-500">{events.length} recent events</span></div><div className="max-h-80 space-y-2 overflow-y-auto">{events.length ? events.map((event) => <button key={event.id} onClick={() => navigate(`/logs/${event.id}`)} className={`w-full animate-[pulse_0.4s_ease-out] border-l-4 bg-slate-950 p-3 text-left ${event.decision === 'block' ? 'border-red-500' : event.decision === 'flag' ? 'border-amber-400' : 'border-emerald-500'}`}><div className="flex items-center justify-between"><span className="font-medium capitalize">{event.provider}</span><DecisionBadge decision={event.decision} /></div><div className="mt-1 flex justify-between text-xs text-slate-500"><span>Risk {event.risk_score ?? '—'}</span><span>{new Date(event.timestamp).toLocaleTimeString()}</span></div></button>) : <p className="py-8 text-center text-sm text-slate-500">Waiting for completed requests…</p>}</div></div> }

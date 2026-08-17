@@ -9,6 +9,7 @@ from app.api.health import router as health_router
 from app.api.v1.router import api_v1_router
 from app.core.config import settings
 from app.features.logging_audit.logger import setup_logging
+from app.features.dashboard_api.router import router as dashboard_router
 from app.features.proxy.router import router as proxy_router
 from app.middleware.request_id import RequestIDMiddleware
 from app.middleware.timing import TimingMiddleware
@@ -39,4 +40,5 @@ app.add_middleware(RequestIDMiddleware)
 
 app.include_router(health_router)
 app.include_router(proxy_router, prefix="/v1")
+app.include_router(dashboard_router, prefix="/v1/dashboard")
 app.include_router(api_v1_router, prefix="/api/v1")

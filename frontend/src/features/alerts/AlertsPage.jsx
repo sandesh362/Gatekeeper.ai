@@ -1,15 +1,9 @@
+import { useEffect, useState } from 'react'
+import { dashboardApi } from '../../services/api.js'
+import RequestTable from '../logs/RequestTable.jsx'
+
 export default function AlertsPage() {
-  return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-2xl font-semibold">Alerts</h2>
-        <p className="mt-1 text-sm text-slate-400">
-          Security alerts and blocked-request notifications.
-        </p>
-      </div>
-      <div className="rounded-xl border border-dashed border-slate-700 p-12 text-center text-slate-500">
-        Coming in Phase 2
-      </div>
-    </div>
-  )
+  const [items, setItems] = useState([]); const [acknowledged, setAcknowledged] = useState({})
+  useEffect(() => { Promise.all([dashboardApi.getRequests({ decision: 'flag', page_size: 100 }), dashboardApi.getRequests({ decision: 'block', page_size: 100 })]).then(([flags, blocks]) => setItems([...flags.items, ...blocks.items].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)))) }, [])
+  return <section className="space-y-5"><div><h2 className="text-2xl font-semibold">Alerts</h2><p className="text-sm text-slate-400">Flagged and blocked requests requiring attention.</p></div><RequestTable items={items} acknowledged={acknowledged} onToggleAcknowledged={(id) => setAcknowledged((current) => ({ ...current, [id]: !current[id] }))} /></section>
 }
