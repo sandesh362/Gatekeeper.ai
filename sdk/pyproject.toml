@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gatekeeper-ai"
+version = "0.1.0"
+description = "A lightweight Python client for the Gatekeeper AI safety proxy."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Gatekeeper.ai" }]
+dependencies = ["httpx>=0.24,<1"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+
+[project.urls]
+Homepage = "https://github.com/gatekeeper-ai/gatekeeper-ai"
+
+[tool.setuptools.packages.find]
+include = ["gatekeeper_ai*"]
