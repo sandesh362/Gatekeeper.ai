@@ -11,14 +11,14 @@ from app.features.dashboard_api.schemas import LiveRequestEvent
 
 class LiveDashboardHub:
     def __init__(self) -> None:
-        self._connections: set[WebSocket] = set()
+        self._connections: dict[WebSocket, UUID] = {}
 
-    async def connect(self, websocket: WebSocket) -> None:
+    async def connect(self, websocket: WebSocket, organization_id: UUID) -> None:
         await websocket.accept()
-        self._connections.add(websocket)
+        self._connections[websocket] = organization_id
 
     def disconnect(self, websocket: WebSocket) -> None:
-        self._connections.discard(websocket)
+        self._connections.pop(websocket, None)
 
     async def publish(
         self,
@@ -28,6 +28,7 @@ class LiveDashboardHub:
         decision: str,
         risk_score: int | None,
         provider: str,
+        organization_id: UUID,
     ) -> None:
         event = LiveRequestEvent(
             id=request_id,
@@ -37,7 +38,9 @@ class LiveDashboardHub:
             provider=provider,
         ).model_dump_json()
         stale: list[WebSocket] = []
-        for connection in list(self._connections):
+        for connection, connection_org_id in list(self._connections.items()):
+            if connection_org_id != organization_id:
+                continue
             try:
                 await connection.send_text(event)
             except Exception:  # a client may disconnect between broadcasts

@@ -1,10 +1,11 @@
 import asyncio
+import os
 
 from gatekeeper_ai import AsyncGatekeeperClient
 
 
 async def main() -> None:
-    async with AsyncGatekeeperClient() as client:
+    async with AsyncGatekeeperClient(api_key=os.environ["GATEKEEPER_API_KEY"]) as client:
         completion = await client.chat(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": "Say hello."}],
@@ -13,4 +14,3 @@ async def main() -> None:
 
 
 asyncio.run(main())
-

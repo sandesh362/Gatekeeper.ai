@@ -1,8 +1,11 @@
 import httpx
+import os
 import unittest
 from unittest.mock import patch
 
 from gatekeeper_ai.compat import GatekeeperOpenAI
+
+os.environ["GATEKEEPER_API_KEY"] = "gk_test_key"
 
 
 class CompatibilityTests(unittest.TestCase):

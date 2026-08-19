@@ -28,7 +28,7 @@ with GatekeeperClient() as client:
         print(f"Blocked: {exc.risk_score=} {exc.category=} {exc.request_id=}")
 ```
 
-`GatekeeperClient` defaults to `http://localhost:8000`. Set `GATEKEEPER_BASE_URL` and, if your deployment requires it, `GATEKEEPER_API_KEY`; constructor values take precedence.
+`GatekeeperClient` defaults to `http://localhost:8000` and requires an API key. Set `GATEKEEPER_BASE_URL` and `GATEKEEPER_API_KEY` (or pass `api_key=`); constructor values take precedence. Create the key from the dashboard Settings page.
 
 ## Drop-in OpenAI-style usage
 
@@ -73,4 +73,3 @@ Every returned metadata object and blocked exception includes the Gatekeeper `re
 ## Examples
 
 See `examples/basic_usage.py`, `examples/async_usage.py`, `examples/blocked_request_handling.py`, and `examples/drop_in_replacement.py`.
-

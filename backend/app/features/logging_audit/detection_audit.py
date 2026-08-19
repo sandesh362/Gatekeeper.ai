@@ -18,6 +18,7 @@ class DetectionAuditService:
         db: AsyncSession,
         *,
         request_id: uuid.UUID,
+        organization_id: uuid.UUID,
         result: DetectionResult,
     ) -> DetectionResultRecord:
         existing = await db.execute(
@@ -30,6 +31,7 @@ class DetectionAuditService:
             db.add(record)
 
         record.risk_score = result.risk_score
+        record.organization_id = organization_id
         record.decision = DetectionDecisionEnum(result.decision.value)
         record.layer_breakdown = [layer.model_dump() for layer in result.layer_breakdown]
         record.canary_triggered = result.canary_triggered

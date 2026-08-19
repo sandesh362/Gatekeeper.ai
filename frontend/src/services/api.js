@@ -1,7 +1,8 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? ''
 
 async function request(path, options = {}) {
-  const response = await fetch(`${API_BASE}${path}`, { headers: { 'Content-Type': 'application/json', ...options.headers }, ...options })
+  const token = window.__gatekeeperAccessToken
+  const response = await fetch(`${API_BASE}${path}`, { credentials: 'include', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers }, ...options })
   if (!response.ok) throw new Error(`API error: ${response.status} ${response.statusText}`)
   return response.json()
 }
@@ -17,10 +18,18 @@ export const dashboardApi = {
   getRequest: (id) => request(`/v1/dashboard/requests/${id}`),
   getStats: () => request('/v1/dashboard/stats'),
 }
+export const authApi = {
+  register: (body) => request('/v1/auth/register', { method: 'POST', body: JSON.stringify(body) }),
+  login: (body) => request('/v1/auth/login', { method: 'POST', body: JSON.stringify(body) }),
+  refresh: () => request('/v1/auth/refresh', { method: 'POST' }),
+  keys: () => request('/v1/api-keys'),
+  createKey: (body) => request('/v1/api-keys', { method: 'POST', body: JSON.stringify(body) }),
+  revokeKey: (id) => request(`/v1/api-keys/${id}`, { method: 'DELETE' }),
+}
 
-export function liveDashboardUrl() {
+export function liveDashboardUrl(accessToken) {
   const base = API_BASE || window.location.origin
-  return `${base.replace(/^http/, 'ws')}/v1/dashboard/live`
+  return `${base.replace(/^http/, 'ws')}/v1/dashboard/live?access_token=${encodeURIComponent(accessToken || '')}`
 }
 
 export function healthCheck() { return request('/health') }

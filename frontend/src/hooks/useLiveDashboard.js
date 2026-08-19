@@ -5,15 +5,17 @@ import { useAppStore } from '../store/index.js'
 export function useLiveDashboard() {
   const setConnectionStatus = useAppStore((state) => state.setConnectionStatus)
   const addLiveEvent = useAppStore((state) => state.addLiveEvent)
+  const accessToken = useAppStore((state) => state.accessToken)
   useEffect(() => {
     let retry; let socket
     const connect = () => {
-      setConnectionStatus('connecting'); socket = new WebSocket(liveDashboardUrl())
+      if (!accessToken) return
+      setConnectionStatus('connecting'); socket = new WebSocket(liveDashboardUrl(accessToken))
       socket.onopen = () => setConnectionStatus('connected')
       socket.onmessage = (event) => addLiveEvent(JSON.parse(event.data))
       socket.onerror = () => socket.close()
       socket.onclose = () => { setConnectionStatus('disconnected'); retry = window.setTimeout(connect, 3000) }
     }
     connect(); return () => { window.clearTimeout(retry); socket?.close() }
-  }, [addLiveEvent, setConnectionStatus])
+  }, [accessToken, addLiveEvent, setConnectionStatus])
 }

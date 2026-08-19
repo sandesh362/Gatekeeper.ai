@@ -48,6 +48,8 @@ class ProxyService:
         request: ChatRequest,
         db: AsyncSession,
         request_id: uuid.UUID,
+        organization_id: uuid.UUID,
+        api_key_id: uuid.UUID,
     ) -> ChatResponse:
         provider_client = get_provider(request.provider)
         messages = [message.model_dump() for message in request.messages]
@@ -64,7 +66,7 @@ class ProxyService:
             entry = await self._audit.log_request(
                 db,
                 request_id=request_id,
-                client_id=request.client_id,
+                organization_id=organization_id, api_key_id=api_key_id,
                 provider=provider_enum,
                 model_name=request.model,
                 prompt=prompt_text,
@@ -73,8 +75,8 @@ class ProxyService:
                 latency_ms=latency_ms,
                 error_message=detection_result.reasoning_summary,
             )
-            await self._detection_audit.log_detection(db, request_id=request_id, result=detection_result)
-            await self._publish_live(entry, detection_result)
+            await self._detection_audit.log_detection(db, request_id=request_id, organization_id=organization_id, result=detection_result)
+            await self._publish_live(entry, detection_result, organization_id)
             logger.warning(
                 "proxy_request_blocked",
                 extra={
@@ -87,7 +89,7 @@ class ProxyService:
                 categories=detection_result.categories,
             )
 
-        canary_token = generate_canary_token(request.client_id)
+        canary_token = generate_canary_token(str(organization_id))
         messages_with_canary = inject_canary_into_messages(messages, canary_token)
 
         try:
@@ -103,7 +105,7 @@ class ProxyService:
                 entry = await self._audit.log_request(
                     db,
                     request_id=request_id,
-                    client_id=request.client_id,
+                    organization_id=organization_id, api_key_id=api_key_id,
                     provider=provider_enum,
                     model_name=result.model,
                     prompt=prompt_text,
@@ -113,9 +115,9 @@ class ProxyService:
                     error_message=detection_result.reasoning_summary,
                 )
                 await self._detection_audit.log_detection(
-                    db, request_id=request_id, result=detection_result
+                    db, request_id=request_id, organization_id=organization_id, result=detection_result
                 )
-                await self._publish_live(entry, detection_result)
+                await self._publish_live(entry, detection_result, organization_id)
                 raise ProxyBlockedError(
                     risk_score=detection_result.risk_score,
                     categories=detection_result.categories,
@@ -124,7 +126,7 @@ class ProxyService:
             entry = await self._audit.log_request(
                 db,
                 request_id=request_id,
-                client_id=request.client_id,
+                organization_id=organization_id, api_key_id=api_key_id,
                 provider=provider_enum,
                 model_name=result.model,
                 prompt=prompt_text,
@@ -132,8 +134,8 @@ class ProxyService:
                 status=RequestStatus.success,
                 latency_ms=latency_ms,
             )
-            await self._detection_audit.log_detection(db, request_id=request_id, result=detection_result)
-            await self._publish_live(entry, detection_result)
+            await self._detection_audit.log_detection(db, request_id=request_id, organization_id=organization_id, result=detection_result)
+            await self._publish_live(entry, detection_result, organization_id)
 
             logger.info(
                 "proxy_request_completed",
@@ -168,7 +170,7 @@ class ProxyService:
             entry = await self._audit.log_request(
                 db,
                 request_id=request_id,
-                client_id=request.client_id,
+                organization_id=organization_id, api_key_id=api_key_id,
                 provider=provider_enum,
                 model_name=request.model,
                 prompt=prompt_text,
@@ -177,8 +179,8 @@ class ProxyService:
                 latency_ms=latency_ms,
                 error_message=exc.message,
             )
-            await self._detection_audit.log_detection(db, request_id=request_id, result=detection_result)
-            await self._publish_live(entry, None)
+            await self._detection_audit.log_detection(db, request_id=request_id, organization_id=organization_id, result=detection_result)
+            await self._publish_live(entry, None, organization_id)
             logger.warning(
                 "proxy_request_failed",
                 extra={
@@ -192,7 +194,7 @@ class ProxyService:
             await provider_client.close()
 
     @staticmethod
-    async def _publish_live(entry, detection_result) -> None:
+    async def _publish_live(entry, detection_result, organization_id: uuid.UUID) -> None:
         """Notify dashboard clients after the durable audit write succeeds."""
         await live_dashboard_hub.publish(
             request_id=entry.id,
@@ -200,6 +202,7 @@ class ProxyService:
             decision=(detection_result.decision.value if detection_result else "error"),
             risk_score=detection_result.risk_score if detection_result else None,
             provider=entry.provider.value,
+            organization_id=organization_id,
         )
 
 

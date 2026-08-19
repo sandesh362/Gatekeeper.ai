@@ -1,8 +1,11 @@
 import asyncio
+import os
 import unittest
 
 import httpx
 from gatekeeper_ai import AsyncGatekeeperClient, GatekeeperBlockedError, GatekeeperClient
+
+os.environ["GATEKEEPER_API_KEY"] = "gk_test_key"
 
 
 def _response(request: httpx.Request) -> httpx.Response:

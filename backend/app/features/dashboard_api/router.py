@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
+from app.core.security import decode_token
 from sqlalchemy import String, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +12,8 @@ from app.db.models import DetectionResultRecord, RequestLog, RequestStatus
 from app.db.session import get_db
 from app.features.dashboard_api.live import live_dashboard_hub
 from app.features.dashboard_api.schemas import DashboardStats, PaginatedRequests, RequestDetail, RequestListItem, TimeBucket
+from app.features.auth.dependencies import require_dashboard_user
+from app.db.models import DashboardUser
 
 router = APIRouter(tags=["dashboard"])
 
@@ -25,7 +28,7 @@ def _item(row: tuple[RequestLog, DetectionResultRecord | None]) -> RequestListIt
     request, result = row
     return RequestListItem(
         id=request.id, timestamp=request.timestamp, provider=request.provider.value,
-        model=request.model_name, client_id=request.client_id,
+        model=request.model_name, client_id=str(request.api_key_id) if request.api_key_id else None,
         decision=_decision(request.status, result.decision.value if result else None),
         risk_score=result.risk_score if result else None, latency_ms=request.latency_ms,
         canary_triggered=result.canary_triggered if result else False,
@@ -41,9 +44,10 @@ async def list_requests(
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
+    user: DashboardUser = Depends(require_dashboard_user),
 ) -> PaginatedRequests:
     query = select(RequestLog, DetectionResultRecord).outerjoin(DetectionResultRecord, DetectionResultRecord.request_id == RequestLog.id)
-    filters = []
+    filters = [RequestLog.organization_id == user.organization_id]
     if provider:
         filters.append(RequestLog.provider == provider)
     if start:
@@ -62,9 +66,9 @@ async def list_requests(
 
 
 @router.get("/requests/{request_id}", response_model=RequestDetail)
-async def get_request(request_id: UUID, db: AsyncSession = Depends(get_db)) -> RequestDetail:
+async def get_request(request_id: UUID, db: AsyncSession = Depends(get_db), user: DashboardUser = Depends(require_dashboard_user)) -> RequestDetail:
     from fastapi import HTTPException
-    row = (await db.execute(select(RequestLog, DetectionResultRecord).outerjoin(DetectionResultRecord, DetectionResultRecord.request_id == RequestLog.id).where(RequestLog.id == request_id))).one_or_none()
+    row = (await db.execute(select(RequestLog, DetectionResultRecord).outerjoin(DetectionResultRecord, DetectionResultRecord.request_id == RequestLog.id).where(RequestLog.id == request_id, RequestLog.organization_id == user.organization_id))).one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="Request not found")
     request, result = row
@@ -76,10 +80,10 @@ async def get_request(request_id: UUID, db: AsyncSession = Depends(get_db)) -> R
 
 
 @router.get("/stats", response_model=DashboardStats)
-async def get_stats(db: AsyncSession = Depends(get_db)) -> DashboardStats:
+async def get_stats(db: AsyncSession = Depends(get_db), user: DashboardUser = Depends(require_dashboard_user)) -> DashboardStats:
     now = datetime.now(timezone.utc)
     since = now - timedelta(hours=24)
-    rows = (await db.execute(select(RequestLog, DetectionResultRecord).outerjoin(DetectionResultRecord, DetectionResultRecord.request_id == RequestLog.id).where(RequestLog.timestamp >= since))).all()
+    rows = (await db.execute(select(RequestLog, DetectionResultRecord).outerjoin(DetectionResultRecord, DetectionResultRecord.request_id == RequestLog.id).where(RequestLog.timestamp >= since, RequestLog.organization_id == user.organization_id))).all()
     total = len(rows)
     decisions = [_decision(request.status, result.decision.value if result else None) for request, result in rows]
     categories = {"jailbreak": 0, "injection": 0, "exfil": 0, "benign": 0}
@@ -108,7 +112,13 @@ async def get_stats(db: AsyncSession = Depends(get_db)) -> DashboardStats:
 
 @router.websocket("/live")
 async def live_requests(websocket: WebSocket) -> None:
-    await live_dashboard_hub.connect(websocket)
+    token = websocket.query_params.get("access_token")
+    try:
+        organization_id = UUID(decode_token(token or "", "access")["org"])
+    except (ValueError, KeyError):
+        await websocket.close(code=4401)
+        return
+    await live_dashboard_hub.connect(websocket, organization_id)
     try:
         while True:
             await websocket.receive_text()

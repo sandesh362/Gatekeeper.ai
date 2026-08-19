@@ -49,3 +49,15 @@ class GatekeeperAPIError(GatekeeperError):
         suffix = f" (request_id={request_id})" if request_id else ""
         super().__init__(f"Gatekeeper API error ({status_code}): {detail}{suffix}")
 
+
+class GatekeeperAuthError(GatekeeperError):
+    """The API key was missing, invalid, or revoked."""
+    def __init__(self) -> None:
+        super().__init__("Gatekeeper authentication failed. Check that GATEKEEPER_API_KEY is valid and active.")
+
+
+class GatekeeperRateLimitError(GatekeeperError):
+    """The API key has exceeded its configured rate limit."""
+    def __init__(self, retry_after: int | None) -> None:
+        self.retry_after = retry_after
+        super().__init__(f"Gatekeeper rate limit exceeded. Retry after {retry_after or 60} seconds.")

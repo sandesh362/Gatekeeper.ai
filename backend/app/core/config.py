@@ -20,7 +20,12 @@ class Settings(BaseSettings):
     PORT: int = 8000
 
     DATABASE_URL: str = "postgresql+asyncpg://gatekeeper:gatekeeper@localhost:5432/gatekeeper"
-    SECRET_KEY: str = "change-me-in-production"
+    SECRET_KEY: str
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    REDIS_URL: str = "redis://localhost:6379/0"
+    DEFAULT_RATE_LIMIT_PER_MINUTE: int = 60
 
     OPENAI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""

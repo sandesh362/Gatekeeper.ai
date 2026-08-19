@@ -16,6 +16,10 @@ dependencies = [
     "pyyaml>=6.0.2",
     "sentence-transformers>=3.3.0",
     "chromadb>=0.5.0",
+    "passlib[bcrypt]>=1.7.4",
+    "bcrypt<5",
+    "PyJWT>=2.10.0",
+    "redis>=5.2.0",
 ]
 
 [project.optional-dependencies]

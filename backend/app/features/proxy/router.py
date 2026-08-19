@@ -15,6 +15,7 @@ from app.features.proxy.schemas import (
     ChatResponse,
 )
 from app.features.proxy.service import ProxyBlockedError, ProxyService, proxy_service
+from app.features.auth.dependencies import require_api_key
 
 router = APIRouter(tags=["proxy"])
 
@@ -29,11 +30,12 @@ async def chat_completion(
     request: Request,
     db: AsyncSession = Depends(get_db),
     service: ProxyService = Depends(get_proxy_service),
+    api_key=Depends(require_api_key),
 ) -> ChatResponse | JSONResponse:
     request_id = uuid.UUID(request.state.request_id)
 
     try:
-        return await service.handle_chat(body, db, request_id)
+        return await service.handle_chat(body, db, request_id, api_key.organization_id, api_key.id)
     except ProxyBlockedError as exc:
         return JSONResponse(
             status_code=403,

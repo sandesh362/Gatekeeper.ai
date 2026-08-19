@@ -11,6 +11,7 @@ from app.features.proxy.router import get_proxy_service
 from app.features.proxy.schemas import ChatRequest, ChatResponse, TokenUsage
 from app.features.proxy.service import ProxyService
 from app.main import app
+from app.features.auth.dependencies import require_api_key
 
 
 @pytest.fixture
@@ -24,7 +25,7 @@ def mock_proxy_service() -> ProxyService:
     service = AsyncMock(spec=ProxyService)
 
     async def _handle_chat(
-        request: ChatRequest, db, request_id: uuid.UUID
+        request: ChatRequest, db, request_id: uuid.UUID, organization_id, api_key_id
     ) -> ChatResponse:
         return ChatResponse(
             request_id=str(request_id),
@@ -38,6 +39,14 @@ def mock_proxy_service() -> ProxyService:
 
     service.handle_chat.side_effect = _handle_chat
     return service
+
+
+@pytest.fixture(autouse=True)
+def bypass_api_key_for_legacy_proxy_tests() -> Generator[None, None, None]:
+    key = type("TestKey", (), {"organization_id": uuid.uuid4(), "id": uuid.uuid4()})()
+    app.dependency_overrides[require_api_key] = lambda: key
+    yield
+    app.dependency_overrides.pop(require_api_key, None)
 
 
 @pytest.fixture

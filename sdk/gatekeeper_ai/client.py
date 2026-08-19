@@ -7,7 +7,7 @@ from typing import Any
 
 import httpx
 
-from .exceptions import GatekeeperAPIError, GatekeeperBlockedError, GatekeeperConnectionError
+from .exceptions import GatekeeperAPIError, GatekeeperAuthError, GatekeeperBlockedError, GatekeeperConnectionError, GatekeeperRateLimitError
 from .types import (
     ChatCompletionChoice,
     ChatCompletionMessage,
@@ -65,6 +65,11 @@ def _handle_response(response: httpx.Response) -> GatekeeperChatCompletion:
         category = categories[0] if categories else None
         risk_score = data.get("risk_score", 0) if isinstance(data, dict) else 0
         raise GatekeeperBlockedError(risk_score, category, request_id, categories=categories)
+    if response.status_code == 401:
+        raise GatekeeperAuthError()
+    if response.status_code == 429:
+        raw_retry = response.headers.get("Retry-After")
+        raise GatekeeperRateLimitError(int(raw_retry) if raw_retry and raw_retry.isdigit() else None)
     if response.is_error:
         raise GatekeeperAPIError(response.status_code, _error_detail(data, response.reason_phrase), request_id)
 
@@ -102,6 +107,8 @@ class GatekeeperClient:
         http_client: httpx.Client | None = None,
     ) -> None:
         self.base_url, self.api_key = _settings(base_url, api_key)
+        if not self.api_key:
+            raise GatekeeperAuthError()
         self.provider = provider
         self._client = http_client or httpx.Client(timeout=timeout)
         self._owns_client = http_client is None
@@ -143,6 +150,8 @@ class AsyncGatekeeperClient:
         http_client: httpx.AsyncClient | None = None,
     ) -> None:
         self.base_url, self.api_key = _settings(base_url, api_key)
+        if not self.api_key:
+            raise GatekeeperAuthError()
         self.provider = provider
         self._client = http_client or httpx.AsyncClient(timeout=timeout)
         self._owns_client = http_client is None
@@ -164,4 +173,3 @@ class AsyncGatekeeperClient:
 
     async def __aexit__(self, *_: Any) -> None:
         await self.aclose()
-

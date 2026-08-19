@@ -16,7 +16,8 @@ class AuditService:
         db: AsyncSession,
         *,
         request_id: uuid.UUID,
-        client_id: str | None,
+        organization_id: uuid.UUID,
+        api_key_id: uuid.UUID | None,
         provider: Provider,
         model_name: str,
         prompt: str,
@@ -27,7 +28,8 @@ class AuditService:
     ) -> RequestLog:
         entry = RequestLog(
             id=request_id,
-            client_id=client_id,
+            organization_id=organization_id,
+            api_key_id=api_key_id,
             provider=provider,
             model_name=model_name,
             prompt=prompt,
